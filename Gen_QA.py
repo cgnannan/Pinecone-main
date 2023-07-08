@@ -10,16 +10,17 @@ openai.api_key=os.getenv("OPENAI_API_KEY")
 model="text-davinci-003"
 embed_model="text-embedding-ada-002"
 #data = load_dataset('jamescalam/youtube-transcriptions', split='train')
-old_index_name = 'semantic-search-openai'
-new_index_name = 'openai-youtube-transcriptions'
+old_index_name = 'openai'
+new_index_name = 'fifa-world-cup-2022-qatar'
+query = "Who is the best goalkeeper for the 2022 Qatar World Cup?"
 
-"""res=openai.Embedding.create(
+res=openai.Embedding.create(
     input=[
         "Sample document text goes here",
         "there will be several phrases in each batch"
     ],
     model=embed_model
-)"""
+)
 
 # initialize connection to pinecone (get API key at app.pinecone.io)
 pinecone.init(
@@ -39,11 +40,12 @@ if new_index_name not in pinecone.list_indexes():
         dimension=len(res['data'][0]['embedding']),
         metric='cosine',
         metadata_config={'indexed': ['channel_id', 'published']}
-    )"""
-# connect to index
+    )
+# connect to index"""
 index = pinecone.Index(new_index_name)
 # view index stats
 index_stats=index.describe_index_stats()
+print(index_stats)
 
 """
 new_data = []
@@ -103,32 +105,38 @@ for i in tqdm(range(0, len(new_data), batch_size)):
     } for x in meta_batch]
     to_upsert = list(zip(ids_batch, embeds, meta_batch))
     # upsert to Pinecone
-    index.upsert(vectors=to_upsert)
-"""
-limit=3750
+    index.upsert(vectors=to_upsert)"""
+
+limit = 3750
 
 def retrieve(query):
-    res=openai.Embedding.create(input=query,model=embed_model)
+    res = openai.Embedding.create(
+        input=[query],
+        engine=embed_model
+    )
 
     # retrieve from Pinecone
-    xq=res['data'][0]['embedding']
-    
-    # get relevant contexts
-    res=index.query(xq,top_k=3,include_metadata=True)
-    contexts=[x['metadata']['text'] for x in res['matches']]
+    xq = res['data'][0]['embedding']
 
-    #build our prompt with the retrieved contexts included
-    prompt_start=(
+    # get relevant contexts
+    res = index.query(xq, top_k=5, include_metadata=True)
+    contexts = [
+        x['metadata']['text'] for x in res['matches']
+    ]
+    # build our prompt with the retrieved contexts included
+    prompt_start = (
         "Answer the question based on the context below.\n\n"+
         "Context:\n"
     )
-    prompt_end=(f"\n\nQuestion:{query}\nAnswer:")
+    prompt_end = (
+        f"\n\nQuestion: {query}\nAnswer:"
+    )
     # append contexts until hitting limit
     for i in range(1, len(contexts)):
         if len("\n\n---\n\n".join(contexts[:i])) >= limit:
             prompt = (
                 prompt_start +
-                "\n\n---\n\n".join(contexts[:i-1]) +
+                "\n\n---\n\n".join(contexts[:i]) +
                 prompt_end
             )
             break
@@ -139,20 +147,17 @@ def retrieve(query):
                 prompt_end
             )
     return prompt
+    
+query_with_contexts=retrieve(query)
+print(query_with_contexts)
 
 def complete(prompt):
     res=openai.Completion.create(
         model=model,
         prompt=prompt,
         temperature=0,
-        max_tokens=100,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=None
+        max_tokens=256
     )
-    return res['choices'][0]['text']
+    return res['choices'][0]['text'].strip()
 
-query = "Which training method should I use for sentence transformers when I only have pairs of related sentences?"
-query_with_contexts=retrieve(query)
 print(complete(query_with_contexts))
