@@ -7,7 +7,7 @@ from time import sleep
 
 
 openai.api_key=os.getenv("OPENAI_API_KEY")
-model="gpt-4-0613"
+model="gpt-3.5-turbo-0613"
 embed_model="text-embedding-ada-002"
 #data = load_dataset('jamescalam/youtube-transcriptions', split='train')
 old_index_name = 'openai'
