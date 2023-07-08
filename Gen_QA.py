@@ -7,12 +7,12 @@ from time import sleep
 
 
 openai.api_key=os.getenv("OPENAI_API_KEY")
-model="text-davinci-003"
+model="gpt-4-0613"
 embed_model="text-embedding-ada-002"
 #data = load_dataset('jamescalam/youtube-transcriptions', split='train')
 old_index_name = 'openai'
 new_index_name = 'fifa-world-cup-2022-qatar'
-query = "Who is the best goalkeeper for the 2022 Qatar World Cup?"
+query = "Morocco's final place in Qatar 2022 World Cup?"
 
 res=openai.Embedding.create(
     input=[
@@ -152,12 +152,15 @@ query_with_contexts=retrieve(query)
 print(query_with_contexts)
 
 def complete(prompt):
-    res=openai.Completion.create(
+    res=openai.ChatCompletion.create(
         model=model,
-        prompt=prompt,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt},
+        ],
         temperature=0,
         max_tokens=256
     )
-    return res['choices'][0]['text'].strip()
+    return res['choices'][0]['message']['content'].strip()
 
 print(complete(query_with_contexts))
